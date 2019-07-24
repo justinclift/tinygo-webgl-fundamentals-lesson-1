@@ -5,7 +5,7 @@ to TinyGo:
 
 Running demo:
 
-&nbsp; &nbsp; https://justinclift.github.io/tinygo-webgl-fundamentals-lessons1/
+&nbsp; &nbsp; https://justinclift.github.io/tinygo-webgl-fundamentals-lesson-1/
 
 To compile the WebAssembly file:
 
