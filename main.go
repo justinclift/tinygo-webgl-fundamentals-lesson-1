@@ -3,7 +3,11 @@ package main
 // TinyGo version of the 1st WebGL Fundamentals lesson
 // https://webglfundamentals.org/webgl/lessons/webgl-fundamentals.html
 
-import "syscall/js"
+import (
+	"syscall/js"
+
+	"github.com/justinclift/webgl"
+)
 
 const (
 	// https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/Constants
@@ -19,8 +23,6 @@ const (
 )
 
 var (
-	gl js.Value
-
 	// Vertex shader source code
 	vertCode = `
 	// an attribute will receive data from a buffer
@@ -49,15 +51,22 @@ var (
 func main() {
 	// Set up WebGL context
 	doc := js.Global().Get("document")
-	canvasEl := doc.Call("getElementById", "mycanvas")
-	width := canvasEl.Get("clientWidth").Int()
-	height := canvasEl.Get("clientHeight").Int()
-	canvasEl.Call("setAttribute", "width", width)
-	canvasEl.Call("setAttribute", "height", height)
-	gl = canvasEl.Call("getContext", "webgl")
-	if gl == js.Undefined() {
-		// No support
-		println("Could not create WebGL context.  Seems unsupported.")
+	canvas := doc.Call("getElementById", "mycanvas")
+	width := canvas.Get("clientWidth").Int()
+	height := canvas.Get("clientHeight").Int()
+	canvas.Call("setAttribute", "width", width)
+	canvas.Call("setAttribute", "height", height)
+
+	// Set up the WebGL context attributes we want to use
+	// https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/getContext (search for "WebGL context
+	// attributes" on the page)
+	attrs := webgl.DefaultAttributes()
+	attrs.Alpha = false
+
+	// Create the WebGL context
+	gl, err := webgl.NewContext(&canvas, attrs)
+	if err != nil {
+		js.Global().Call("alert", "Error: "+err.Error())
 		return
 	}
 
@@ -71,13 +80,14 @@ func main() {
 	program := createProgram(gl, vertexShader, fragmentShader)
 
 	// Look up where the vertex data needs to go
-	positionAttributeLocation := gl.Call("getAttribLocation", program, "a_position")
+	positionAttributeLocation := gl.GetAttribLocation(program, "a_position")
 
 	// Create a buffer and put three 2d clip space points in it
-	positionBuffer := gl.Call("createBuffer", ARRAY_BUFFER)
+	positionBuffer := gl.CreateArrayBuffer()
+	// positionBuffer := gl.Call("createBuffer", ARRAY_BUFFER)
 
 	// Bind it to ARRAY_BUFFER (think of it as ARRAY_BUFFER = positionBuffer)
-	gl.Call("bindBuffer", ARRAY_BUFFER, positionBuffer)
+	gl.BindBuffer(ARRAY_BUFFER, positionBuffer)
 
 	// Three 2d points
 	positionsNative := []float32{
@@ -86,25 +96,25 @@ func main() {
 		0.7, 0,
 	}
 	positions := js.TypedArrayOf(positionsNative)
-	gl.Call("bufferData", ARRAY_BUFFER, positions, STATIC_DRAW)
+	gl.BufferData(ARRAY_BUFFER, positions, STATIC_DRAW)
 
 	// * WebGL rendering code *
 
 	// Tell WebGL how to convert from clip space to pixels
-	gl.Call("viewport", 0, 0, width, height)
+	gl.Viewport(0, 0, width, height)
 
 	// Clear the canvas
-	gl.Call("clearColor", 0, 0, 0, 0)
-	gl.Call("clear", COLOR_BUFFER_BIT)
+	gl.ClearColor(0, 0, 0, 0)
+	gl.Clear(COLOR_BUFFER_BIT)
 
 	// Tell it to use our program (pair of shaders)
-	gl.Call("useProgram", program)
+	gl.UseProgram(program)
 
 	// Turn on the attribute
-	gl.Call("enableVertexAttribArray", positionAttributeLocation)
+	gl.EnableVertexAttribArray(positionAttributeLocation)
 
 	// Bind the position buffer
-	gl.Call("bindBuffer", ARRAY_BUFFER, positionBuffer)
+	gl.BindBuffer(ARRAY_BUFFER, positionBuffer)
 
 	// Tell the attribute how to get data out of positionBuffer (ARRAY_BUFFER)
 	pbSize := 2          // 2 components per iteration
@@ -112,38 +122,38 @@ func main() {
 	pbNormalize := false // don't normalize the data
 	pbStride := 0        // 0 = move forward size * sizeof(pbType) each iteration to get the next position
 	pbOffset := 0        // start at the beginning of the buffer
-	gl.Call("vertexAttribPointer", positionAttributeLocation, pbSize, pbType, pbNormalize, pbStride, pbOffset)
+	gl.VertexAttribPointer(positionAttributeLocation, pbSize, pbType, pbNormalize, pbStride, pbOffset)
 
 	// Draw
 	primType := TRIANGLES
 	primOffset := 0
 	primCount := 3
-	gl.Call("drawArrays", primType, primOffset, primCount)
+	gl.DrawArrays(primType, primOffset, primCount)
 }
 
-func createShader(gl js.Value, shaderType uint, source string) js.Value {
-	shader := gl.Call("createShader", shaderType)
-	gl.Call("shaderSource", shader, source)
-	gl.Call("compileShader", shader)
-	success := gl.Call("getShaderParameter", shader, COMPILE_STATUS).Bool()
+func createShader(gl *webgl.Context, shaderType int, source string) *js.Value {
+	shader := gl.CreateShader(shaderType)
+	gl.ShaderSource(shader, source)
+	gl.CompileShader(shader)
+	success := gl.GetShaderParameter(shader, COMPILE_STATUS).Bool()
 	if success {
 		return shader
 	}
-	println(gl.Call("getShaderInfoLog", shader).String())
-	gl.Call("deleteShader", shader)
-	return js.Value{}
+	println(gl.GetShaderInfoLog(shader))
+	gl.DeleteShader(shader)
+	return &js.Value{}
 }
 
-func createProgram(gl js.Value, vertexShader js.Value, fragmentShader js.Value) js.Value {
-	program := gl.Call("createProgram")
-	gl.Call("attachShader", program, vertexShader)
-	gl.Call("attachShader", program, fragmentShader)
-	gl.Call("linkProgram", program)
-	success := gl.Call("getProgramParameter", program, LINK_STATUS).Bool()
+func createProgram(gl *webgl.Context, vertexShader *js.Value, fragmentShader *js.Value) *js.Value {
+	program := gl.CreateProgram()
+	gl.AttachShader(program, vertexShader)
+	gl.AttachShader(program, fragmentShader)
+	gl.LinkProgram(program)
+	success := gl.GetProgramParameterb(program, LINK_STATUS)
 	if success {
 		return program
 	}
-	println(gl.Call("getProgramInfoLog", program).String())
-	gl.Call("deleteProgram", program)
-	return js.Value{}
+	println(gl.GetProgramInfoLog(program))
+	gl.DeleteProgram(program)
+	return &js.Value{}
 }
