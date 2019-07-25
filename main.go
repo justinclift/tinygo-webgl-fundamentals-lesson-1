@@ -5,36 +5,22 @@ package main
 
 import "syscall/js"
 
-var (
-	gl      js.Value
-	glTypes GLTypes
+const (
+	// https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/Constants
+	ARRAY_BUFFER     = 0x8892
+	COLOR_BUFFER_BIT = 0x00004000
+	COMPILE_STATUS   = 0x8B81
+	FLOAT            = 0x1406
+	FRAGMENT_SHADER  = 0x8B30
+	LINK_STATUS      = 0x8B82
+	STATIC_DRAW      = 0x88E4
+	TRIANGLES        = 0x0004
+	VERTEX_SHADER    = 0x8B31
 )
 
-type GLTypes struct {
-	arrayBuffer    js.Value
-	colorBufferBit js.Value
-	compileStatus  js.Value
-	float          js.Value
-	fragmentShader js.Value
-	linkStatus     js.Value
-	staticDraw     js.Value
-	triangles      js.Value
-	vertexShader   js.Value
-}
-
-func (types *GLTypes) New() {
-	types.arrayBuffer = gl.Get("ARRAY_BUFFER")
-	types.colorBufferBit = gl.Get("COLOR_BUFFER_BIT")
-	types.compileStatus = gl.Get("COMPILE_STATUS")
-	types.float = gl.Get("FLOAT")
-	types.fragmentShader = gl.Get("FRAGMENT_SHADER")
-	types.linkStatus = gl.Get("LINK_STATUS")
-	types.staticDraw = gl.Get("STATIC_DRAW")
-	types.triangles = gl.Get("TRIANGLES")
-	types.vertexShader = gl.Get("VERTEX_SHADER")
-}
-
 var (
+	gl js.Value
+
 	// Vertex shader source code
 	vertCode = `
 	// an attribute will receive data from a buffer
@@ -75,14 +61,11 @@ func main() {
 		return
 	}
 
-	// Initialise the GL types
-	glTypes.New()
-
 	// * WebGL initialisation code *
 
 	// Create GLSL shaders, upload the GLSL source, compile the shaders
-	vertexShader := createShader(gl, glTypes.vertexShader, vertCode)
-	fragmentShader := createShader(gl, glTypes.fragmentShader, fragCode)
+	vertexShader := createShader(gl, VERTEX_SHADER, vertCode)
+	fragmentShader := createShader(gl, FRAGMENT_SHADER, fragCode)
 
 	// Link the two shaders into a program
 	program := createProgram(gl, vertexShader, fragmentShader)
@@ -91,10 +74,10 @@ func main() {
 	positionAttributeLocation := gl.Call("getAttribLocation", program, "a_position")
 
 	// Create a buffer and put three 2d clip space points in it
-	positionBuffer := gl.Call("createBuffer", glTypes.arrayBuffer)
+	positionBuffer := gl.Call("createBuffer", ARRAY_BUFFER)
 
 	// Bind it to ARRAY_BUFFER (think of it as ARRAY_BUFFER = positionBuffer)
-	gl.Call("bindBuffer", glTypes.arrayBuffer, positionBuffer)
+	gl.Call("bindBuffer", ARRAY_BUFFER, positionBuffer)
 
 	// Three 2d points
 	positionsNative := []float32{
@@ -103,7 +86,7 @@ func main() {
 		0.7, 0,
 	}
 	positions := js.TypedArrayOf(positionsNative)
-	gl.Call("bufferData", glTypes.arrayBuffer, positions, glTypes.staticDraw)
+	gl.Call("bufferData", ARRAY_BUFFER, positions, STATIC_DRAW)
 
 	// * WebGL rendering code *
 
@@ -112,7 +95,7 @@ func main() {
 
 	// Clear the canvas
 	gl.Call("clearColor", 0, 0, 0, 0)
-	gl.Call("clear", glTypes.colorBufferBit)
+	gl.Call("clear", COLOR_BUFFER_BIT)
 
 	// Tell it to use our program (pair of shaders)
 	gl.Call("useProgram", program)
@@ -121,28 +104,28 @@ func main() {
 	gl.Call("enableVertexAttribArray", positionAttributeLocation)
 
 	// Bind the position buffer
-	gl.Call("bindBuffer", glTypes.arrayBuffer, positionBuffer)
+	gl.Call("bindBuffer", ARRAY_BUFFER, positionBuffer)
 
 	// Tell the attribute how to get data out of positionBuffer (ARRAY_BUFFER)
-	pbSize := 2             // 2 components per iteration
-	pbType := glTypes.float // the data is 32bit floats
-	pbNormalize := false    // don't normalize the data
-	pbStride := 0           // 0 = move forward size * sizeof(pbType) each iteration to get the next position
-	pbOffset := 0           // start at the beginning of the buffer
+	pbSize := 2          // 2 components per iteration
+	pbType := FLOAT      // the data is 32bit floats
+	pbNormalize := false // don't normalize the data
+	pbStride := 0        // 0 = move forward size * sizeof(pbType) each iteration to get the next position
+	pbOffset := 0        // start at the beginning of the buffer
 	gl.Call("vertexAttribPointer", positionAttributeLocation, pbSize, pbType, pbNormalize, pbStride, pbOffset)
 
 	// Draw
-	primType := glTypes.triangles
+	primType := TRIANGLES
 	primOffset := 0
 	primCount := 3
 	gl.Call("drawArrays", primType, primOffset, primCount)
 }
 
-func createShader(gl js.Value, shaderType js.Value, source string) js.Value {
+func createShader(gl js.Value, shaderType uint, source string) js.Value {
 	shader := gl.Call("createShader", shaderType)
 	gl.Call("shaderSource", shader, source)
 	gl.Call("compileShader", shader)
-	success := gl.Call("getShaderParameter", shader, glTypes.compileStatus).Bool()
+	success := gl.Call("getShaderParameter", shader, COMPILE_STATUS).Bool()
 	if success {
 		return shader
 	}
@@ -156,7 +139,7 @@ func createProgram(gl js.Value, vertexShader js.Value, fragmentShader js.Value) 
 	gl.Call("attachShader", program, vertexShader)
 	gl.Call("attachShader", program, fragmentShader)
 	gl.Call("linkProgram", program)
-	success := gl.Call("getProgramParameter", program, glTypes.linkStatus).Bool()
+	success := gl.Call("getProgramParameter", program, LINK_STATUS).Bool()
 	if success {
 		return program
 	}
