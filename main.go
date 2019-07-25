@@ -65,7 +65,6 @@ func main() {
 
 	// Create a buffer and put three 2d clip space points in it
 	positionBuffer := gl.CreateArrayBuffer()
-	// positionBuffer := gl.Call("createBuffer", ARRAY_BUFFER)
 
 	// Bind it to ARRAY_BUFFER (think of it as ARRAY_BUFFER = positionBuffer)
 	gl.BindBuffer(webgl.ARRAY_BUFFER, positionBuffer)
