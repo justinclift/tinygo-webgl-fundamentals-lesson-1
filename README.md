@@ -9,7 +9,7 @@ Running demo:
 
 To compile the WebAssembly file:
 
-    $ tinygo build -target wasm -no-debug -panic trap -o docs/wasm.wasm main.go
+    $ tinygo build -target wasm -no-debug -o docs/wasm.wasm main.go
 
 To strip the custom name section from the end (reducing file size further):
 
