@@ -75,7 +75,7 @@ func main() {
 		0, 0.5,
 		0.7, 0,
 	}
-	positions := js.TypedArrayOf(positionsNative)
+	positions := webgl.SliceToTypedArray(positionsNative)
 	gl.BufferData(webgl.ARRAY_BUFFER, positions, webgl.STATIC_DRAW)
 
 	// * WebGL rendering code *
